@@ -30,8 +30,16 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
+from zoneinfo import ZoneInfo
+from itertools import cycle
 
 STATE_FILE = "state.json"
+AMSTERDAM = ZoneInfo("Europe/Amsterdam")
+
+# Post-reminder times (your local time, Netherlands). Automatically stays
+# correct through summer/winter time changes since we compare using
+# Europe/Amsterdam, not fixed UTC hours.
+REMINDER_HOURS_LOCAL = [9, 12, 14, 16, 18, 20, 22]
 
 TIKTOK_USERNAME = "rvst_officieel"
 YOUTUBE_URL = "https://www.youtube.com/@RVST-officieel"
@@ -64,7 +72,22 @@ CONTENT_IDEAS = [
     "\"Real life vs Droom\"-concept herhalen — dit format trok bij jou 6.600+ views.",
     "Een korte quiz/uitdaging (\"Weet jij het antwoord?\") voor extra comments en interactie.",
     "Een oudere TikTok-hit hergebruiken als YouTube Short om je kleinere kanaal te voeden.",
+    "Reageer op een trending voetbalmoment van vandaag met je eigen versie/mening.",
+    "Film een \"before and after\" van een skill die je aan het oefenen bent.",
+    "Doe een korte penalty- of trickshot-challenge en daag je volgers uit hem na te doen.",
+    "Laat een blooper of mislukte poging zien — dat voelt persoonlijker en scoort vaak goed op comments.",
+    "Stel een vraag aan je volgers in de caption in plaats van een statement — dat verhoogt comments.",
 ]
+
+
+def pick_ideas(n=3, seed=None):
+    """Rotates through the idea pool so consecutive reminders don't repeat."""
+    if seed is None:
+        seed = datetime.now(AMSTERDAM).toordinal() * 24 + datetime.now(AMSTERDAM).hour
+    pool = CONTENT_IDEAS
+    start = seed % len(pool)
+    rotated = pool[start:] + pool[:start]
+    return rotated[:n]
 
 
 def log(msg):
@@ -187,6 +210,41 @@ def fmt(n):
     return f"{round(n or 0):,}".replace(",", ".")
 
 
+def maybe_send_post_reminders(state):
+    """Sends up to 7 post reminders/day at fixed local times, each with
+    fresh content ideas + estimated reach. Safe to call every run — it only
+    actually sends once per hour-slot per day, tracked in state."""
+    now_local = datetime.now(AMSTERDAM)
+    if now_local.hour not in REMINDER_HOURS_LOCAL:
+        return
+
+    today_local = now_local.date().isoformat()
+    slot_id = f"{today_local}_{now_local.hour:02d}"
+    sent_slots = state.setdefault("sent_reminder_slots", [])
+    if slot_id in sent_slots:
+        return  # already sent this slot today
+
+    ideas = pick_ideas(3, seed=now_local.toordinal() * 24 + now_local.hour)
+    low, high = estimate_view_potential([HASHTAG_STATS[0]["tag"]])
+    top_tags = ", ".join(f"{s['tag']} (gem. {fmt(s['avg'])} views)" for s in HASHTAG_STATS[:3])
+
+    subject = f"⏰ Tijd om te posten! ({now_local.strftime('%H:%M')})"
+    body = (
+        f"Reminder: dit is een goed moment om iets te posten.\n\n"
+        f"Verwacht bereik als je nu post met je best presterende hashtags: "
+        f"{fmt(low)}\u2013{fmt(high)} views.\n"
+        f"Je sterkste hashtags tot nu toe: {top_tags}.\n\n"
+        "Video-ideeën voor nu:\n"
+        + "\n".join(f"- {idea}" for idea in ideas)
+        + "\n\n— RVST Monitor (automatisch, draait op GitHub Actions)"
+    )
+    send_email(subject, body)
+
+    sent_slots.append(slot_id)
+    # keep the list from growing forever — only keep the last 14 days
+    state["sent_reminder_slots"] = sent_slots[-(14 * len(REMINDER_HOURS_LOCAL)):]
+
+
 def main():
     if not APIFY_TOKEN:
         log("APIFY_TOKEN missing — aborting.")
@@ -280,6 +338,8 @@ def main():
         )
         send_email(f"⚠️ Geen nieuwe post in {days_since} dag(en) — RVST", body)
         state["last_inactivity_alert_date"] = today
+
+    maybe_send_post_reminders(state)
 
     save_state(state)
     log(f"Done. {len(fresh)} new video(s) found.")
