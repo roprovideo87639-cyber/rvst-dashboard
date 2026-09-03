@@ -2,11 +2,13 @@ name: RVST Monitor
 
 on:
   schedule:
+    # Runs every 30 minutes, 24/7, on GitHub's own servers.
+    # Cron is in UTC. Adjust the "*/30" if you want a different frequency.
     - cron: "*/30 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
 
 permissions:
-  contents: write
+  contents: write   # needed so the workflow can commit state.json back
 
 jobs:
   check:
@@ -32,6 +34,6 @@ jobs:
         run: |
           git config user.name "rvst-monitor-bot"
           git config user.email "actions@github.com"
-          git add state.json
+          git add state.json stats.json
           git diff --cached --quiet || git commit -m "Update state [skip ci]"
           git push
