@@ -19,5 +19,17 @@
   "last_post_date": "9 months ago",
   "last_digest_date": "2026-09-03",
   "last_inactivity_alert_date": null,
-  "seeded": true
+  "seeded": true,
+  "last_known_stats": {
+    "tiktok": {
+      "followers": 681,
+      "hearts": 8554,
+      "videos": 120
+    },
+    "youtube": {
+      "subscribers": 246,
+      "totalViews": 130965,
+      "videos": 55
+    }
+  }
 }
