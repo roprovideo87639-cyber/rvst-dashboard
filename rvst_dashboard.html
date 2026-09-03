@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RVST — Matchday Stat Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch: #0e2e21;
+    --pitch-deep: #081a13;
+    --chalk: #f2efe4;
+    --chalk-dim: #b9c7bd;
+    --lime: #c8ff4d;
+    --lime-dim: #97c93a;
+    --amber: #ff9f40;
+    --line: rgba(242,239,228,0.14);
+    --card: #123626;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 120px),
+      linear-gradient(180deg, var(--pitch) 0%, var(--pitch-deep) 100%);
+    color:var(--chalk);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    padding: 28px 16px 60px;
+  }
+  .wrap{ max-width: 980px; margin: 0 auto; }
+
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom: 3px solid var(--lime);
+    padding-bottom:18px; margin-bottom: 20px; flex-wrap:wrap; gap:12px;
+  }
+  .kit{ font-family:'Bebas Neue', sans-serif; font-size: clamp(48px, 9vw, 88px); line-height:0.85; letter-spacing: 1px; color: var(--chalk); }
+  .kit span{ color:var(--lime); }
+  .subtitle{ font-family:'Barlow Condensed', sans-serif; font-weight:600; font-size:16px; color: var(--chalk-dim); text-transform: uppercase; letter-spacing: 2px; }
+  .matchdate{ font-family:'Barlow Condensed', sans-serif; font-size: 18px; color: var(--chalk-dim); text-align:right; }
+  .matchdate strong{ color:var(--lime); display:block; font-size:22px; }
+
+  /* Auto status bar */
+  .auto-bar{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:22px; font-family:'Barlow Condensed', sans-serif; font-size:14px; color: var(--chalk-dim);
+  }
+  .live-dot{ width:9px; height:9px; border-radius:50%; background: var(--lime); display:inline-block; box-shadow: 0 0 0 0 rgba(200,255,77,0.6); animation: pulse 2s infinite; flex-shrink:0; }
+  @keyframes pulse{ 0%{ box-shadow: 0 0 0 0 rgba(200,255,77,0.5); } 70%{ box-shadow: 0 0 0 6px rgba(200,255,77,0); } 100%{ box-shadow: 0 0 0 0 rgba(200,255,77,0); } }
+  .auto-bar.err .live-dot{ background:#ff6b6b; animation:none; }
+
+  .scoreboard{ display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 34px; }
+  @media (max-width:640px){ .scoreboard{ grid-template-columns: 1fr; } }
+  .team-card{ background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 20px 22px; position:relative; overflow:hidden; }
+  .team-card::before{ content:""; position:absolute; top:0; left:0; right:0; height:4px; background: linear-gradient(90deg, var(--lime), transparent 80%); }
+  .team-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 14px; }
+  .team-name{ font-family:'Bebas Neue', sans-serif; font-size: 30px; letter-spacing:1px; }
+  .team-tag{ font-family:'Barlow Condensed', sans-serif; font-size:13px; color: var(--pitch-deep); background: var(--lime); padding: 3px 9px; border-radius: 3px; font-weight:700; letter-spacing:1px; }
+  .stat-row{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+  .stat{ border-left: 2px solid var(--line); padding-left: 10px; }
+  .stat b{ display:block; font-family:'Bebas Neue', sans-serif; font-size: 30px; color: var(--chalk); line-height:1; transition: color 0.3s; }
+  .stat b.bump{ color: var(--lime); }
+  .stat span{ font-family:'Barlow Condensed', sans-serif; font-size: 13px; color: var(--chalk-dim); letter-spacing:0.5px; }
+  .team-foot{ margin-top:16px; padding-top:12px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--chalk-dim); display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+  .team-foot a{ color: var(--lime); text-decoration:none; }
+
+  .section-title{ display:flex; align-items:center; gap: 12px; margin: 40px 0 16px; }
+  .section-title h2{ font-family:'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; margin:0; }
+  .section-title .count{ font-family:'Barlow Condensed', sans-serif; font-size:13px; color: var(--pitch-deep); background: var(--chalk-dim); padding:2px 8px; border-radius:3px; font-weight:700; white-space:nowrap; }
+  .section-title .rule{ flex:1; height:1px; background: var(--line); }
+
+  .board{ background: var(--card); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .board.scroll{ max-height: 480px; overflow-y:auto; }
+  .row{ display:grid; grid-template-columns: 70px 1fr 110px; gap: 14px; align-items:center; padding: 11px 18px; border-bottom: 1px solid var(--line); }
+  .row:last-child{ border-bottom:none; }
+  .row:nth-child(odd){ background: rgba(255,255,255,0.015); }
+  .row.new-video{ background: rgba(200,255,77,0.07); }
+  .rank{ font-family:'Barlow Condensed', sans-serif; font-size: 12px; color: var(--chalk-dim); text-align:center; }
+  .row-main .cap{ font-size: 13.5px; color: var(--chalk); margin:0 0 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 100%; }
+  .row-main a{ color:inherit; text-decoration:none; }
+  .row-main a:hover{ color: var(--lime); }
+  .bar-track{ height:5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow:hidden; }
+  .bar-fill{ height:100%; background: linear-gradient(90deg, var(--lime-dim), var(--lime)); }
+  .row-nums{ text-align:right; font-family:'Barlow Condensed', sans-serif; }
+  .row-nums b{ display:block; font-size: 17px; color: var(--chalk); }
+  .row-nums span{ font-size: 11.5px; color: var(--chalk-dim); }
+  .yt .bar-fill{ background: linear-gradient(90deg, #d97a2c, var(--amber)); }
+
+  /* Hashtag table */
+  .tag-table{ background: var(--card); border:1px solid var(--line); border-radius:4px; padding: 6px 0; }
+  .tag-row{ display:grid; grid-template-columns: 1fr 90px 100px; gap:10px; align-items:center; padding:10px 18px; border-bottom:1px solid var(--line); font-family:'Barlow Condensed', sans-serif; }
+  .tag-row:last-child{ border-bottom:none; }
+  .tag-row .tagname{ font-size:15px; color: var(--lime); font-weight:700; }
+  .tag-row .n{ font-size:12px; color: var(--chalk-dim); text-align:right; }
+  .tag-row .avg{ font-size:15px; text-align:right; color:var(--chalk); }
+
+  /* Inspiration cards */
+  .insp-list{ display:flex; flex-direction:column; gap:10px; }
+  .insp-item{ background: var(--card); border:1px solid var(--line); border-radius:4px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .insp-item .why{ font-size:13px; color: var(--chalk-dim); margin-top:4px; }
+  .insp-item a{ color: var(--chalk); text-decoration:none; font-size:14px; font-weight:600; }
+  .insp-item a:hover{ color: var(--lime); }
+  .insp-item .views{ font-family:'Bebas Neue', sans-serif; font-size:22px; color: var(--lime); white-space:nowrap; }
+
+  .insights{ background: var(--card); border:1px solid var(--line); border-radius:4px; padding: 22px; }
+  .insights .chart-wrap{ margin-bottom: 18px; }
+  .insights svg{ width:100%; height:auto; display:block; }
+  .insight-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top:18px; }
+  @media (max-width:640px){ .insight-grid{ grid-template-columns: 1fr; } }
+  .insight-block h3{ font-family:'Bebas Neue', sans-serif; font-size:19px; letter-spacing:0.5px; margin: 0 0 8px; color: var(--lime); }
+  .insight-block ul{ margin:0; padding-left:18px; font-size:14px; line-height:1.6; color: var(--chalk); }
+  .insight-block li{ margin-bottom:6px; }
+
+  /* Video feedback log */
+  .log-empty{ font-family:'Barlow Condensed', sans-serif; color: var(--chalk-dim); font-size:14px; padding: 18px; text-align:center; background: var(--card); border:1px solid var(--line); border-radius:4px; }
+  .log-item{ background: var(--card); border:1px solid var(--line); border-left: 3px solid var(--lime); border-radius:4px; padding:14px 18px; margin-bottom:10px; }
+  .log-item .lt{ font-size:14px; color:var(--chalk); font-weight:600; margin-bottom:6px; }
+  .log-item .lt a{ color:inherit; text-decoration:none; }
+  .log-item .lt a:hover{ color:var(--lime); }
+  .log-item .ld{ font-family:'Barlow Condensed', sans-serif; font-size:12px; color: var(--chalk-dim); margin-bottom:8px; }
+  .log-item .lf{ font-size:13.5px; color: var(--chalk-dim); line-height:1.5; }
+  .log-item .lf b{ color: var(--lime); }
+
+  footer{ margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); font-family:'Barlow Condensed', sans-serif; color: var(--chalk-dim); font-size: 13px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="subtitle">Content performance / matchday stat sheet</div>
+      <div class="kit">RVST<span>.</span></div>
+    </div>
+    <div class="matchdate">Laatste update<br><strong id="today"></strong></div>
+  </header>
+
+  <div class="auto-bar" id="auto-bar">
+    <span class="live-dot"></span>
+    <span id="auto-status-txt">automatisch controleren gestart…</span>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="scoreboard">
+    <div class="team-card">
+      <div class="team-head">
+        <div class="team-name">TikTok</div>
+        <div class="team-tag">@rvst_officieel</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><b id="tt-followers">680</b><span>Volgers</span></div>
+        <div class="stat"><b id="tt-hearts">8.530</b><span>Hearts totaal</span></div>
+        <div class="stat"><b id="tt-videos">122</b><span>Video's totaal</span></div>
+      </div>
+      <div class="team-foot">
+        <span>Gem. views (alle 120 opgehaald): <strong style="color:var(--chalk)" id="tt-avgviews">2.354</strong></span>
+        <a href="https://www.tiktok.com/@rvst_officieel" target="_blank">Bekijk profiel →</a>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-head">
+        <div class="team-name">YouTube</div>
+        <div class="team-tag" style="background:var(--amber)">@RVST-officieel</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><b id="yt-subs">247</b><span>Abonnees</span></div>
+        <div class="stat"><b id="yt-views">130.864</b><span>Views totaal</span></div>
+        <div class="stat"><b id="yt-videos">55</b><span>Video's totaal</span></div>
+      </div>
+      <div class="team-foot">
+        <span>Gem. views (14 lange video's): <strong style="color:var(--chalk)" id="yt-avgviews">203</strong></span>
+        <a href="https://www.youtube.com/@RVST-officieel" target="_blank">Bekijk kanaal →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW VIDEO FEEDBACK LOG -->
+  <div class="section-title">
+    <h2>Feedback op nieuwe video's</h2>
+    <div class="rule"></div>
+  </div>
+  <div id="video-log">
+    <div class="log-empty" id="log-empty-msg">Feedback op nieuwe video's (hashtags + editing-tips) ontvang je automatisch per e-mail zodra je iets post — dat is de live bron. Dit document toont hierboven de vaste analyse van je bestaande geschiedenis.</div>
+    <div class="log-empty" style="margin-top:8px;">Nieuwe post-reminders komen 7x per dag per e-mail (09:00–22:00), met verse video-ideeën en verwacht bereik.</div>
+  </div>
+
+  <!-- INSPIRATION -->
+  <div class="section-title">
+    <h2>Ter inspiratie — je eigen best presterende video's</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="insp-list">
+    <div class="insp-item">
+      <div>
+        <a href="https://www.tiktok.com/@rvst_officieel/video/7538047322324880673" target="_blank">"Wat een 1 tegen 1" →</a>
+        <div class="why">1-op-1 duel format + #1v1 hashtag. Beste video ooit — dit format herhalen loont.</div>
+      </div>
+      <div class="views">19.800</div>
+    </div>
+    <div class="insp-item">
+      <div>
+        <a href="https://www.tiktok.com/@rvst_officieel/video/7559264418995932449" target="_blank">"Weer zo'n video gevonden" →</a>
+        <div class="why">Found-footage/reactie format met #1v1 #funny — nieuwsgierigheid als hook.</div>
+      </div>
+      <div class="views">14.300</div>
+    </div>
+    <div class="insp-item">
+      <div>
+        <a href="https://www.tiktok.com/@rvst_officieel/video/7531814137337351457" target="_blank">"Shoutout naar @Sint Jago Academy" →</a>
+        <div class="why">Samenwerking/tag naar een bekende academie — cross-exposure naar hun volgers.</div>
+      </div>
+      <div class="views">10.100</div>
+    </div>
+    <div class="insp-item">
+      <div>
+        <a href="https://www.tiktok.com/@rvst_officieel/video/7616369340161559841" target="_blank">"Real life vs Droom" →</a>
+        <div class="why">Herkenbaar concept/format (verwachting vs realiteit) — makkelijk te herhalen met nieuwe content.</div>
+      </div>
+      <div class="views">6.614</div>
+    </div>
+    <div class="insp-item">
+      <div>
+        <a href="https://www.tiktok.com/@rvst_officieel/video/7576226893624642848" target="_blank">"Hier zijn dan je saves" →</a>
+        <div class="why">Keeper-vs-speler duel, reageert op een genoemde persoon — sociale/reactie-hook.</div>
+      </div>
+      <div class="views">6.609</div>
+    </div>
+  </div>
+
+  <!-- HASHTAG PERFORMANCE -->
+  <div class="section-title">
+    <h2>Best presterende hashtags</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="tag-table" id="tag-table"></div>
+  <p style="font-family:'Barlow Condensed', sans-serif; font-size:13px; color:var(--chalk-dim); margin-top:10px;">
+    Gebaseerd op alle 120 opgehaalde video's. #1v1 heeft het hoogste gemiddelde maar wordt zelden gebruikt (6x) — een kans om vaker in te zetten bij duel-content. #fyp en #viral staan in bijna elke video en zijn dus niet onderscheidend; #youtube, #rvst en #rvstofficial correleren met hogere views, mogelijk omdat ze samen met je sterkste content-type voorkomen.
+  </p>
+
+  <!-- TIKTOK FULL HISTORY -->
+  <div class="section-title">
+    <h2>TikTok — volledige geschiedenis</h2>
+    <span class="count" id="tt-count">120 video's</span>
+    <div class="rule"></div>
+  </div>
+  <div class="board scroll" id="tiktok-board"></div>
+
+  <!-- YOUTUBE FULL HISTORY -->
+  <div class="section-title">
+    <h2>YouTube — lange video's</h2>
+    <span class="count" id="yt-count">14 video's</span>
+    <div class="rule"></div>
+  </div>
+  <div class="board yt scroll" id="youtube-board"></div>
+  <p style="font-family:'Barlow Condensed', sans-serif; font-size:13px; color:var(--chalk-dim); margin-top:10px;">
+    Let op: je kanaal heeft 55 video's totaal, maar de scraper haalt alleen lange video's op — de overige ~41 zijn vermoedelijk Shorts, die deze tool niet apart oppikt.
+  </p>
+
+  <!-- INSIGHTS -->
+  <div class="section-title">
+    <h2>Analyse &amp; verbeterpunten</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="insights">
+    <div class="chart-wrap">
+      <svg id="trend-svg" viewBox="0 0 700 180" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="insight-grid">
+      <div class="insight-block">
+        <h3>Wat opvalt</h3>
+        <ul>
+          <li>Je 3 oudste hits (jul–okt 2025) trekken 10K–20K views; recente posts zitten vaak onder de 2K. Bereik is gedaald ondanks constant posten.</li>
+          <li>Engagement rate (likes/views) ligt hoger op je recente, kleinere video's dan op de oude virale outliers — je huidige kijkers zijn loyaler, alleen er zijn er minder.</li>
+          <li>#1v1 heeft veruit het hoogste gemiddelde aantal views van alle hashtags, maar wordt bijna nooit gebruikt.</li>
+          <li>Veel bijschriften herhalen zich bijna letterlijk ("Lukt het jou ook?"). TikTok's algoritme beloont herhaling niet.</li>
+          <li>YouTube groeit veel langzamer dan TikTok terwijl je maar zelden nieuwe lange video's plaatst — een groot deel van je TikTok-publiek weet waarschijnlijk niet dat je kanaal bestaat.</li>
+        </ul>
+      </div>
+      <div class="insight-block">
+        <h3>Wat te doen</h3>
+        <ul>
+          <li>Gebruik #1v1 vaker bij duel-/challenge-content — dit is je best bewezen tag.</li>
+          <li>Varieer bijschriften per video in plaats van hetzelfde blok te kopiëren.</li>
+          <li>Dubbel neer op formats die al aanslaan: 1-op-1 duels, shoutouts naar academies/spelers, "real life vs droom"-concepten.</li>
+          <li>Zet elke TikTok-hit binnen 48 uur ook als YouTube Short — voedt je kleinere kanaal met je grootste publiek.</li>
+          <li>Zet een duidelijke call-to-action naar YouTube in bio/captions om volgers te laten overlopen.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Data via Apify (TikTok Profile Scraper &amp; YouTube Channel Scraper)</span>
+    <span id="footer-sync-note">Automatische controle actief — laatst gesynchroniseerd: nog niet</span>
+  </footer>
+
+</div>
+
+<script>
+document.getElementById('today').textContent = new Date().toLocaleDateString('nl-NL', { day:'numeric', month:'long', year:'numeric' });
+
+const tiktokPosts = [
+  {t:"Wie zou jij de winnaar noemen? #fyp #viral #football #trending #playerpick",u:"https://www.tiktok.com/@rvst_officieel/video/7680545462260141334",v:466,l:23,c:4,d:"2026-09-01"},
+  {t:"Wie is de beste club binnen landsingerland? #fyp #viral #football #trending #club",u:"https://www.tiktok.com/@rvst_officieel/video/7680183763476811010",v:2153,l:86,c:53,d:"2026-08-31"},
+  {t:"Moeilijke beslissing? #fyp #viral #football #skills",u:"https://www.tiktok.com/@rvst_officieel/video/7679851497244462358",v:682,l:29,c:8,d:"2026-08-30"},
+  {t:"Lukt het jou ook? #fyp #viral #football #challenge #trickshot",u:"https://www.tiktok.com/@rvst_officieel/video/7678296314878102806",v:830,l:30,c:2,d:"2026-08-26"},
+  {t:"Een volger erbij is een glimlach erbij #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7677909676960320790",v:976,l:46,c:5,d:"2026-08-25"},
+  {t:"#fyp #viral #football #football",u:"https://www.tiktok.com/@rvst_officieel/video/7677615322903498006",v:874,l:33,c:5,d:"2026-08-24"},
+  {t:"Lukt het jou ook? #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7677605956536110358",v:602,l:26,c:5,d:"2026-08-24"},
+  {t:"Lukt het jou? #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7674196128937626902",v:1081,l:35,c:19,d:"2026-08-15"},
+  {t:"Lukt het jou ook? #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7672394285618056470",v:1218,l:48,c:7,d:"2026-08-10"},
+  {t:"Het is gelukt om alle spullen voor aankomende officiele streams binnen te krijgen #fyp #vi",u:"https://www.tiktok.com/@rvst_officieel/video/7670604347293568279",v:1629,l:76,c:5,d:"2026-08-05"},
+  {t:"Penalty King pt1 #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7668287185572924705",v:1865,l:60,c:15,d:"2026-07-30"},
+  {t:"@rvst_live",u:"https://www.tiktok.com/@rvst_officieel/video/7667921032782630176",v:1597,l:45,c:10,d:"2026-07-29"},
+  {t:"Brobbey interview core: #fyp #viral #brobbey #football",u:"https://www.tiktok.com/@rvst_officieel/video/7666785212537343265",v:2493,l:155,c:13,d:"2026-07-26"},
+  {t:"Wow #fyp #viral #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7665714996470369569",v:2793,l:74,c:8,d:"2026-07-23"},
+  {t:"Wow het is echt moeilijk #fyp #viral #football #trickshot",u:"https://www.tiktok.com/@rvst_officieel/video/7665671359275519265",v:932,l:30,c:3,d:"2026-07-23"},
+  {t:"Zondag 19 Juli van 13:00 tot 16:00!! #fyp #viral #football #penaltykingrvst",u:"https://www.tiktok.com/@rvst_officieel/video/7662701171294948641",v:1467,l:36,c:15,d:"2026-07-15"},
+  {t:"In de whatsapp kun je datum en tijd en locatie vinden!! #fyp #viral #football #penaltyking",u:"https://www.tiktok.com/@rvst_officieel/video/7661992265262320929",v:1533,l:63,c:1,d:"2026-07-13"},
+  {t:"Penalty King is Terug #fyp #viral #football #penaltykingrvst",u:"https://www.tiktok.com/@rvst_officieel/video/7661224211586747680",v:873,l:26,c:15,d:"2026-07-11"},
+  {t:"Dit is nog maar het begin van Golden Season #fyp #viral #football #penaltykingrvst",u:"https://www.tiktok.com/@rvst_officieel/video/7660847976935476512",v:1979,l:86,c:10,d:"2026-07-10"},
+  {t:"2 touch #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7659391126620753185",v:1251,l:43,c:1,d:"2026-07-06"},
+  {t:"Te veel moeite voor zo iets moois #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7658976656484207904",v:1938,l:50,c:4,d:"2026-07-05"},
+  {t:"Hoppaaa #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7658644774240406817",v:1326,l:46,c:1,d:"2026-07-04"},
+  {t:"Links rechts #fyp #viral #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7658280996965485857",v:1071,l:38,c:3,d:"2026-07-03"},
+  {t:"met de winst #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7657904674732903712",v:2923,l:51,c:2,d:"2026-07-02"},
+  {t:"Ik heb gewonnen #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7657544690249649440",v:1517,l:56,c:15,d:"2026-07-01"},
+  {t:"Heb jij dit ook? #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7657175934876847392",v:1203,l:46,c:2,d:"2026-06-30"},
+  {t:"Ga jij dit ook een keer proberen? #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7654948891846085921",v:1002,l:32,c:1,d:"2026-06-24"},
+  {t:"Aiden 2-0 Winst [1/2/3 Touch] #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7654572255946591520",v:1130,l:24,c:0,d:"2026-06-23"},
+  {t:"Te veel celebrations #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7653823546300337441",v:2466,l:67,c:5,d:"2026-06-21"},
+  {t:"Wie zou de finale winnen? #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7653091025929456929",v:2004,l:53,c:8,d:"2026-06-19"},
+  {t:"Ken jij zo'n persoon #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7652714602920267040",v:3490,l:125,c:11,d:"2026-06-18"},
+  {t:"Back of the net #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7652330055472778528",v:2939,l:64,c:12,d:"2026-06-17"},
+  {t:"Telt de 3de denk je? #fyp #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7651601247652285728",v:1116,l:31,c:4,d:"2026-06-15"},
+  {t:"Best feeling ever #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7651204292661054752",v:2155,l:62,c:2,d:"2026-06-14"},
+  {t:"Lukt het jou ook? #fyp #viral #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7649721847679896865",v:1135,l:55,c:7,d:"2026-06-10"},
+  {t:"Waar wacht je op volg #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7648987903191829792",v:1289,l:55,c:3,d:"2026-06-08"},
+  {t:"Welke kies jij? #fyp #viral #football",u:"https://www.tiktok.com/@rvst_officieel/video/7648230502280793376",v:1430,l:53,c:8,d:"2026-06-06"},
+  {t:"Weet jij wat er miss is? #fyp #viral #football #trending #soccer",u:"https://www.tiktok.com/@rvst_officieel/video/7646764410953927969",v:1937,l:37,c:4,d:"2026-06-02"},
+  {t:"Best Celebration? #trending #football #jyaime",u:"https://www.tiktok.com/@rvst_officieel/video/7646382530119175456",v:3834,l:134,c:18,d:"2026-06-01"},
+  {t:"Lukt het jou ook? #fyp #viral #football #trending #trickshot",u:"https://www.tiktok.com/@rvst_officieel/video/7644526519938747680",v:1419,l:50,c:8,d:"2026-05-27"},
+  {t:"Je hoort het #fyp #viral #trending #Football #100k",u:"https://www.tiktok.com/@rvst_officieel/video/7643779677483584801",v:1622,l:42,c:0,d:"2026-05-25"},
+  {t:"Het was even moeilijk hoor #fyp #viral #Football #soccer #Trending",u:"https://www.tiktok.com/@rvst_officieel/video/7643400244159466785",v:1932,l:53,c:5,d:"2026-05-24"},
+  {t:"Meer zoals dit? Vergeet dan niet te volgen!!! #fyp #viral #Football #Trending #soccer",u:"https://www.tiktok.com/@rvst_officieel/video/7643027950945848609",v:2782,l:66,c:10,d:"2026-05-23"},
+  {t:"2# || Quiz King || Weet jij het antwoord? #fyp #viral #Football #Trending #quiz",u:"https://www.tiktok.com/@rvst_officieel/video/7642338764609572129",v:957,l:31,c:1,d:"2026-05-21"},
+  {t:"1# || Quiz King || weet jij het antwoord? #fyp #viral #Youtube #Football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7641972764781448481",v:927,l:28,c:2,d:"2026-05-20"},
+  {t:"Stuur een dm om mee te doen #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7641240915360615712",v:1296,l:29,c:0,d:"2026-05-18"},
+  {t:"Lukt het jou ook? #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7637524202978905377",v:1381,l:69,c:3,d:"2026-05-08"},
+  {t:"Wie heeft gewonnen #fyp #viral #Youtube #football #quiz",u:"https://www.tiktok.com/@rvst_officieel/video/7636072820564299041",v:818,l:17,c:8,d:"2026-05-04"},
+  {t:"Voetbowlen met Spa flessen #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7633382273538116896",v:1691,l:60,c:5,d:"2026-04-27"},
+  {t:"In het kort de gehele video van YouTube #fyp #viral #Youtube #football #Trending",u:"https://www.tiktok.com/@rvst_officieel/video/7633019278270221601",v:1476,l:39,c:4,d:"2026-04-26"},
+  {t:"Haal ze nu op Baysport.nl #fyp #viral #Youtube #football #Trending",u:"https://www.tiktok.com/@rvst_officieel/video/7631183479820029217",v:4568,l:74,c:1,d:"2026-04-21"},
+  {t:"20 euro elke stuk en nog goeie kwaliteit #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7626742274558332192",v:1366,l:38,c:2,d:"2026-04-09"},
+  {t:"Juwan Core #fyp #viral #Youtube #football #Trending",u:"https://www.tiktok.com/@rvst_officieel/video/7624560993607126304",v:1939,l:54,c:11,d:"2026-04-03"},
+  {t:"Dit was een leuke challenge #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7623391956252577057",v:3248,l:76,c:4,d:"2026-03-31"},
+  {t:"De eerste aflevering van penalty kings is vandaag om 15:00 online #fyp #viral #Youtube #fo",u:"https://www.tiktok.com/@rvst_officieel/video/7621557448658193697",v:4517,l:94,c:20,d:"2026-03-26"},
+  {t:"Dit is mij iets te vaak overkomen #fyp #viral #Youtube #football #pov",u:"https://www.tiktok.com/@rvst_officieel/video/7620017298471931169",v:1592,l:33,c:4,d:"2026-03-22"},
+  {t:"Ik hoopte ook soms op dat ze zouden verliezen #fyp #viral #Youtube #football #sketch",u:"https://www.tiktok.com/@rvst_officieel/video/7617847602238770465",v:2055,l:81,c:3,d:"2026-03-16"},
+  {t:"Real life vs Droom #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7616369340161559841",v:6614,l:64,c:3,d:"2026-03-12"},
+  {t:"M'n schoen vliegt door de lucht #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7614125374892477729",v:3230,l:78,c:3,d:"2026-03-06"},
+  {t:"Dm mij op TikTok om mee te doen aan penalty kings #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7612309841410936096",v:1777,l:50,c:7,d:"2026-03-01"},
+  {t:"Lukt het jou ook? #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7611589862998822177",v:2383,l:74,c:6,d:"2026-02-27"},
+  {t:"Bij 700 volgers items weggeven tijdens Penalty kings #fyp #viral #Youtube #football #trend",u:"https://www.tiktok.com/@rvst_officieel/video/7607095105526172961",v:2069,l:57,c:3,d:"2026-02-15"},
+  {t:"Dm mij om hier aan mee te doen #fyp #viral #Youtube #Trending #football",u:"https://www.tiktok.com/@rvst_officieel/video/7604891544146955552",v:1897,l:44,c:6,d:"2026-02-09"},
+  {t:"Koude edit #fyp #viral #Trending #football #edit",u:"https://www.tiktok.com/@rvst_officieel/video/7604072640076123424",v:2118,l:76,c:10,d:"2026-02-07"},
+  {t:"Wat een video die er gaat aankomen #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7602607997545614625",v:2438,l:78,c:11,d:"2026-02-03"},
+  {t:"Hoeveel keer heb ik gemist #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7601486031342292256",v:2827,l:81,c:6,d:"2026-01-31"},
+  {t:"Lukt het jou ook? #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7600772095928274209",v:1793,l:57,c:1,d:"2026-01-29"},
+  {t:"Lukt het jou ook? #fyp #viral #Youtube #challenge #football",u:"https://www.tiktok.com/@rvst_officieel/video/7600377478191811872",v:1761,l:56,c:2,d:"2026-01-28"},
+  {t:"Pt2 Wie is de Goat #fyp #viral #Youtube #football #Goat",u:"https://www.tiktok.com/@rvst_officieel/video/7598554167317138720",v:2332,l:51,c:2,d:"2026-01-23"},
+  {t:"Pt1 wie is de goat #fyp #viral #Youtube #football #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7597786500494888225",v:1937,l:50,c:3,d:"2026-01-21"},
+  {t:"Love naar alle support, gegroeid naar bijna 500 volgers #fyp #viral #Youtube #rvstofficiee",u:"https://www.tiktok.com/@rvst_officieel/video/7596367352745250081",v:1101,l:38,c:3,d:"2026-01-17"},
+  {t:"Wat een challenge #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7595206137532779808",v:2640,l:90,c:5,d:"2026-01-14"},
+  {t:"We hebben er nog 1 #fyp #viral #Youtube #1v1 #football",u:"https://www.tiktok.com/@rvst_officieel/video/7593679826301635873",v:1912,l:63,c:4,d:"2026-01-10"},
+  {t:"Nu online op YouTube #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7592576746730392865",v:2215,l:97,c:9,d:"2026-01-07"},
+  {t:"Het is me echt gelukt in 3 pogingen #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7589607783574572321",v:2365,l:85,c:3,d:"2025-12-30"},
+  {t:"Lukt het jou? #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7587029167309393184",v:2855,l:87,c:10,d:"2025-12-23"},
+  {t:"Lukt het jou? #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7586236226940767521",v:2958,l:93,c:4,d:"2025-12-21"},
+  {t:"Bijna #fyp #viral #Youtube #football #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7584809356227628320",v:3273,l:93,c:3,d:"2025-12-17"},
+  {t:"Lukt het jou? #fyp #viral #Youtube #rvstofficial #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7584024173467487520",v:3447,l:87,c:4,d:"2025-12-15"},
+  {t:"Latje trap #fyp #viral #Youtube #rvstofficial #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7583374273545358625",v:2977,l:93,c:7,d:"2025-12-13"},
+  {t:"Raad de spelers Deel 1. #fyp #viral #Youtube #rvstofficial #quiz",u:"https://www.tiktok.com/@rvst_officieel/video/7582256461363924256",v:1887,l:51,c:5,d:"2025-12-10"},
+  {t:"POV: school verkoopt O2 #fyp #viral #Youtube #rvstofficial #o2life",u:"https://www.tiktok.com/@rvst_officieel/video/7580384159319805216",v:4349,l:101,c:7,d:"2025-12-05"},
+  {t:"Rate in de comments #fyp #viral #Youtube #rvstofficial #eafc26",u:"https://www.tiktok.com/@rvst_officieel/video/7579643046761893152",v:2224,l:72,c:6,d:"2025-12-03"},
+  {t:"20 Euro challenge #fyp #viral #Youtube #rvstofficial #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7577765966247890209",v:1704,l:53,c:15,d:"2025-11-28"},
+  {t:"Hoog hou skills #fyp #viral #Youtube #rvstofficial #football",u:"https://www.tiktok.com/@rvst_officieel/video/7577057662429318432",v:1895,l:54,c:8,d:"2025-11-26"},
+  {t:"Hier zijn dan je saves #fyp #viral #Youtube #rvstofficial #1v1",u:"https://www.tiktok.com/@rvst_officieel/video/7576226893624642848",v:6609,l:98,c:9,d:"2025-11-24"},
+  {t:"Zondag 12:00 uit #fyp #viral #Youtube #rvstofficial #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7575603271147048224",v:5877,l:152,c:3,d:"2025-11-22"},
+  {t:"130 abonnees #fyp #viral #Youtube #rvstofficial #trending",u:"https://www.tiktok.com/@rvst_officieel/video/7574798916907011361",v:2528,l:72,c:5,d:"2025-11-20"},
+  {t:"Die glimlach #fyp #viral #trending #rvstofficial #o2life",u:"https://www.tiktok.com/@rvst_officieel/video/7574412036101197089",v:1994,l:85,c:5,d:"2025-11-19"},
+  {t:"StreetLegendLeague #fyp #viral #Youtube #rvstofficial #streetlegendleague",u:"https://www.tiktok.com/@rvst_officieel/video/7573031326090054945",v:2377,l:64,c:5,d:"2025-11-15"},
+  {t:"Ik heb nieuwe nodig #fyp #viral #Youtube #trending #rvstofficial",u:"https://www.tiktok.com/@rvst_officieel/video/7572297823539006752",v:1506,l:48,c:1,d:"2025-11-13"},
+  {t:"O2Life #fyp #viral #Youtube #rvstofficial #o2life",u:"https://www.tiktok.com/@rvst_officieel/video/7571568005289708832",v:5223,l:115,c:13,d:"2025-11-11"},
+  {t:"Een volger erbij is een glimlach erbij #fyp #viral #following #rvstofficial #quote",u:"https://www.tiktok.com/@rvst_officieel/video/7569329134380322081",v:2237,l:73,c:5,d:"2025-11-05"},
+  {t:"Before and after #fyp #viral #Youtube #trending #rvstofficial",u:"https://www.tiktok.com/@rvst_officieel/video/7564364281697799456",v:2370,l:75,c:4,d:"2025-10-23"},
+  {t:"Om 13:00 live #fyp #viral #Youtube #stream #live",u:"https://www.tiktok.com/@rvst_officieel/video/7563209284553559329",v:1732,l:45,c:6,d:"2025-10-20"},
+  {t:"De achtergrond #fyp #viral #Youtube #stream #halloween",u:"https://www.tiktok.com/@rvst_officieel/video/7561150493246950689",v:1544,l:59,c:5,d:"2025-10-14"},
+  {t:"Horror games streamen (aankondiging) #fyp #viral #Youtube #halloween #stream",u:"https://www.tiktok.com/@rvst_officieel/video/7560724258981154080",v:1455,l:48,c:7,d:"2025-10-13"},
+  {t:"Weer zo'n video gevonden #fyp #viral #Youtube #1v1 #funny",u:"https://www.tiktok.com/@rvst_officieel/video/7559264418995932449",v:14300,l:194,c:18,d:"2025-10-09"},
+  {t:"Feyenoord Europa League #fyp #viral #Youtube #rvst #trailer",u:"https://www.tiktok.com/@rvst_officieel/video/7557289078551498017",v:1377,l:35,c:0,d:"2025-10-04"},
+  {t:"Full Screen #fyp #viral #Youtube #adrenaline #feyenoord",u:"https://www.tiktok.com/@rvst_officieel/video/7557003778050821408",v:1642,l:87,c:0,d:"2025-10-03"},
+  {t:"Lachen #fyp #viral #trending #pose #1M",u:"https://www.tiktok.com/@rvst_officieel/video/7555888035217378593",v:992,l:38,c:0,d:"2025-09-30"},
+  {t:"Dankjewel allemaal #fyp #viral #Youtube #rvst #supporters",u:"https://www.tiktok.com/@rvst_officieel/video/7553359820766661920",v:1634,l:58,c:8,d:"2025-09-23"},
+  {t:"Wat een schot #fyp #Youtube #football #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7552470844539211040",v:1478,l:53,c:3,d:"2025-09-21"},
+  {t:"Mbappe #fyp #football #mbappe #realmadridfc",u:"https://www.tiktok.com/@rvst_officieel/video/7552088359565348129",v:1743,l:65,c:8,d:"2025-09-20"},
+  {t:"GOALLLL! #fyp #viral #Youtube #Football #goal",u:"https://www.tiktok.com/@rvst_officieel/video/7541816970186886432",v:2143,l:51,c:3,d:"2025-08-23"},
+  {t:"Wat een 1 tegen 1 #fyp #viral #Youtube #rvst #1v1",u:"https://www.tiktok.com/@rvst_officieel/video/7538047322324880673",v:19800,l:500,c:48,d:"2025-08-13"},
+  {t:"was een leuke dag #fyp #viral #Youtube #rvst #toverland",u:"https://www.tiktok.com/@rvst_officieel/video/7533265158173363489",v:1681,l:43,c:2,d:"2025-07-31"},
+  {t:"Shoutout naar @Sint Jago Academy #fyp #viral #youtube #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7531814137337351457",v:10100,l:186,c:9,d:"2025-07-27"},
+  {t:"Er komt meer moois aan #fyp #viral #youtube #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7530577275096550689",v:2271,l:43,c:2,d:"2025-07-24"},
+  {t:"Donderdag 14:00 uit #fyp #viral #youtube #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7527650013481143584",v:2669,l:53,c:5,d:"2025-07-16"},
+  {t:"Ik ben helemaal niet zo goed in voetbal #fyp #viral #youtube #football",u:"https://www.tiktok.com/@rvst_officieel/video/7527213481045642528",v:1981,l:48,c:1,d:"2025-07-15"},
+  {t:"Vandaag 16:00 uit #fyp #viral #youtube #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7525737023680859425",v:2405,l:46,c:2,d:"2025-07-11"},
+  {t:"Vandaag 15:00 online yt #fyp #viral #youtube #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7524270755484339488",v:1590,l:38,c:3,d:"2025-07-07"},
+  {t:"Hard work doe jij bij Basic fit #fyp #viral #youtube #basicfit #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7523565002255617312",v:1481,l:35,c:1,d:"2025-07-05"},
+  {t:"1v1 komt er aan zondag, giveaway bij 100 subs #fyp #viral #youtube #rvst #foto",u:"https://www.tiktok.com/@rvst_officieel/video/7522883309265800480",v:1247,l:30,c:2,d:"2025-07-03"},
+  {t:"Goed acteer werk #fyp #viral #youtube #rvst #ad #1v1",u:"https://www.tiktok.com/@rvst_officieel/video/7521724385602948384",v:1941,l:60,c:8,d:"2025-06-30"},
+  {t:"1v1 series komen er aan #fyp #viral #1v1 #serie #youtube #rvst",u:"https://www.tiktok.com/@rvst_officieel/video/7520961369416518945",v:1632,l:39,c:2,d:"2025-06-28"},
+  {t:"2 PlayStation kaarten dit keer #fyp #viral #challenge #rvst #youtube",u:"https://www.tiktok.com/@rvst_officieel/video/7518717879584345377",v:857,l:25,c:1,d:"2025-06-22"},
+  {t:"Wat een leuke avond, eerste challenge video #fyp #rvst #rotimi_voetballer_st #crossbarchal",u:"https://www.tiktok.com/@rvst_officieel/video/7517003563608853792",v:1105,l:25,c:1,d:"2025-06-17"},
+  {t:"Woensdag om 15:00 komt de video uit #fyp #viral #rotimi_voetballer_st #rvst #challenge",u:"https://www.tiktok.com/@rvst_officieel/video/7516894781876866337",v:1239,l:27,c:0,d:"2025-06-17"},
+];
+
+const youtubePosts = [
+  {t:"Penalty Kings Afleveringen 1",u:"https://www.youtube.com/watch?v=mpcY3t2bRiA",v:380,dur:"4:03",dt:"5 months ago"},
+  {t:"Ik start een nieuwe serie",u:"https://www.youtube.com/watch?v=tsb7SqMbu1k",v:57,dur:"0:24",dt:"6 months ago"},
+  {t:"Ik ga een challenge aan tegen Feyenoord speler",u:"https://www.youtube.com/watch?v=0mWlPe3Uu7U",v:116,dur:"6:42",dt:"6 months ago"},
+  {t:"Keeper VS Speler challenge met Livano",u:"https://www.youtube.com/watch?v=ccym_SgD0lc",v:140,dur:"3:35",dt:"7 months ago"},
+  {t:"Training sessie",u:"https://www.youtube.com/watch?v=pIOV6g8bRFo",v:214,dur:"2:41",dt:"9 months ago"},
+  {t:"Devour Met Bruce",u:"https://www.youtube.com/watch?v=KXqsCkrOpwc",v:103,dur:"14:05",dt:"10 months ago"},
+  {t:"Feyenoord tegen Aston villa",u:"https://www.youtube.com/watch?v=O135jdzys1o",v:385,dur:"7:58",dt:"10 months ago"},
+  {t:"Dark Hours Met Luc",u:"https://www.youtube.com/watch?v=bigOlKbX7Gg",v:0,dur:"8:18",dt:"11 months ago"},
+  {t:"STREET FOOTBALL PT2",u:"https://www.youtube.com/watch?v=K7G15UHGCXY",v:255,dur:"3:54",dt:"1 year ago"},
+  {t:"Straat voetballen",u:"https://www.youtube.com/watch?v=Z-guLWfFG1w",v:351,dur:"7:13",dt:"1 year ago"},
+  {t:"Bij de point sportief bezig zijn",u:"https://www.youtube.com/watch?v=WhZuiaWnXyI",v:163,dur:"6:49",dt:"1 year ago"},
+  {t:"Een challenge met a oud prof speler",u:"https://www.youtube.com/watch?v=mL0rasn3i_Y",v:198,dur:"4:28",dt:"1 year ago"},
+  {t:"Challenge",u:"https://www.youtube.com/watch?v=4AzF64XFQIk",v:265,dur:"3:28",dt:"2 years ago"},
+  {t:"Eerste persoon die 10 euro wint",u:"https://www.youtube.com/watch?v=lhTmF3VqLwM",v:210,dur:"2:16",dt:"2 years ago"},
+];
+
+function fmt(n){ return Math.round(n).toLocaleString('nl-NL'); }
+
+function renderTikTok(){
+  const max = Math.max(...tiktokPosts.map(p=>p.v));
+  const el = document.getElementById('tiktok-board');
+  document.getElementById('tt-count').textContent = tiktokPosts.length + " video's";
+  el.innerHTML = tiktokPosts.map((p,i)=>`
+    <div class="row" data-url="${p.u}">
+      <div class="rank">${p.d}</div>
+      <div class="row-main">
+        <p class="cap"><a href="${p.u}" target="_blank">${p.t}</a></p>
+        <div class="bar-track"><div class="bar-fill" style="width:${(p.v/max*100).toFixed(0)}%"></div></div>
+      </div>
+      <div class="row-nums">
+        <b>${fmt(p.v)}</b>
+        <span>${p.l} ♥ · ${p.c} 💬</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderYouTube(){
+  const max = Math.max(...youtubePosts.map(p=>p.v));
+  const el = document.getElementById('youtube-board');
+  document.getElementById('yt-count').textContent = youtubePosts.length + " video's";
+  el.innerHTML = youtubePosts.map((p,i)=>`
+    <div class="row" data-url="${p.u}">
+      <div class="rank">${p.dt}</div>
+      <div class="row-main">
+        <p class="cap"><a href="${p.u}" target="_blank">${p.t}</a></p>
+        <div class="bar-track"><div class="bar-fill" style="width:${(p.v/max*100).toFixed(0)}%"></div></div>
+      </div>
+      <div class="row-nums">
+        <b>${fmt(p.v)}</b>
+        <span>${p.dur}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+let hashtagStats = [];
+function renderHashtagTable(){
+  const tagViews = {};
+  tiktokPosts.forEach(p=>{
+    const tags = new Set((p.t.match(/#(\w+)/g)||[]).map(t=>t.toLowerCase()));
+    tags.forEach(t=>{
+      if(!tagViews[t]) tagViews[t] = [];
+      tagViews[t].push(p.v);
+    });
+  });
+  hashtagStats = Object.entries(tagViews)
+    .filter(([t,arr])=>arr.length>=4)
+    .map(([t,arr])=>({tag:t, n:arr.length, avg: arr.reduce((a,b)=>a+b,0)/arr.length}))
+    .sort((a,b)=>b.avg-a.avg);
+  const el = document.getElementById('tag-table');
+  el.innerHTML = hashtagStats.slice(0,10).map(s=>`
+    <div class="tag-row">
+      <div class="tagname">${s.tag}</div>
+      <div class="n">${s.n}x gebruikt</div>
+      <div class="avg">${fmt(s.avg)} gem. views</div>
+    </div>
+  `).join('');
+}
+
+const channelAvgViews = tiktokPosts.reduce((a,p)=>a+p.v,0) / tiktokPosts.length;
+
+function estimateViewPotential(hashtags){
+  const tags = (hashtags||[]).map(t=>t.replace('#','').toLowerCase());
+  const matches = hashtagStats.filter(s=>tags.includes(s.tag));
+  let base;
+  if(matches.length){
+    base = matches.reduce((a,s)=>a+s.avg,0) / matches.length;
+  }else{
+    base = channelAvgViews;
+  }
+  return { low: Math.round(base*0.6), high: Math.round(base*1.6) };
+}
+
+renderTikTok();
+renderYouTube();
+renderHashtagTable();
+
+// ---------- Trend chart ----------
+function renderTrendChart(){
+  const chrono = [...tiktokPosts].sort((a,b)=> a.d.localeCompare(b.d));
+  const values = chrono.map(p=>p.v);
+  const svg = document.getElementById('trend-svg');
+  const w = 700, h = 180, padL = 10, padR = 10, padT = 15, padB = 15;
+  const max = Math.max(...values), min = Math.min(...values);
+  const innerW = w - padL - padR, innerH = h - padT - padB;
+  const pts = values.map((v,i)=>{
+    const x = padL + (i/(values.length-1))*innerW;
+    const y = padT + innerH - ((v-min)/(max-min))*innerH;
+    return [x,y];
+  });
+  const line = pts.map(p=>p.join(',')).join(' ');
+  const area = `${padL},${padT+innerH} ${line} ${padL+innerW},${padT+innerH}`;
+  svg.innerHTML = `
+    <polygon points="${area}" fill="url(#g)" opacity="0.35"></polygon>
+    <polyline points="${line}" fill="none" stroke="#c8ff4d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#c8ff4d" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="#c8ff4d" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+  `;
+}
+renderTrendChart();
+
+// =====================================================================
+// LIVE STATS — reads stats.json, written every 30 min by the GitHub
+// Actions monitor (the same system that sends your emails). This is the
+// single source of truth: emails and this document now always agree,
+// because they both come from the same file.
+//
+// This only works when this HTML is hosted somewhere with a real origin
+// (e.g. GitHub Pages) sitting next to stats.json — not when opened as a
+// bare local file, since browsers block that kind of fetch for file://
+// pages. If nothing loads, that's why; the numbers below just stay as
+// the last snapshot baked into this file.
+// =====================================================================
+const STATS_URL = './stats.json';
+const STATS_REFRESH_MS = 5 * 60 * 1000;
+
+function setAutoStatus(text, isErr){
+  const bar = document.getElementById('auto-bar');
+  document.getElementById('auto-status-txt').textContent = text;
+  bar.classList.toggle('err', !!isErr);
+}
+
+function bump(id, value){
+  const el = document.getElementById(id);
+  if(!el || value == null) return;
+  if(el.textContent.replace(/\./g,'') !== String(Math.round(value))){
+    el.textContent = fmt(value);
+    el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'), 1200);
+  }
+}
+
+function applyStats(stats){
+  if(!stats) return;
+  if(stats.tiktok){
+    bump('tt-followers', stats.tiktok.followers);
+    bump('tt-hearts', stats.tiktok.hearts);
+    bump('tt-videos', stats.tiktok.videos);
+  }
+  if(stats.youtube){
+    bump('yt-subs', stats.youtube.subscribers);
+    bump('yt-views', stats.youtube.totalViews);
+    bump('yt-videos', stats.youtube.videos);
+  }
+  if(stats.updatedAt){
+    const d = new Date(stats.updatedAt);
+    const txt = d.toLocaleString('nl-NL', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+    document.getElementById('footer-sync-note').textContent = 'Live cijfers — laatst opgehaald door de monitor: ' + txt;
+    setAutoStatus('live — laatst bijgewerkt: ' + txt);
+  }
+}
+
+async function loadLiveStats(){
+  try{
+    const res = await fetch(STATS_URL, {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const stats = await res.json();
+    applyStats(stats);
+  }catch(e){
+    // Expected when opened as a local file, or before the first Action run
+    // has ever committed stats.json. Not a real error — just no live source
+    // available right now, so the baked-in snapshot stays visible.
+    setAutoStatus('geen live-verbinding (open dit document via de GitHub Pages-link voor live cijfers)', true);
+    console.log('Live stats not available:', e.message);
+  }
+}
+
+loadLiveStats();
+setInterval(loadLiveStats, STATS_REFRESH_MS);
+</script>
+</body>
+</html>
