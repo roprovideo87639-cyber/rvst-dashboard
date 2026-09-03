@@ -34,6 +34,7 @@ from zoneinfo import ZoneInfo
 from itertools import cycle
 
 STATE_FILE = "state.json"
+STATS_FILE = "stats.json"
 AMSTERDAM = ZoneInfo("Europe/Amsterdam")
 
 # Post-reminder times (your local time, Netherlands). Automatically stays
@@ -112,18 +113,26 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
-def apify_run_sync(actor_slug, run_input):
-    """Runs an Apify actor synchronously and returns its dataset items."""
+def apify_run_sync(actor_slug, run_input, retries=2):
+    """Runs an Apify actor synchronously and returns its dataset items.
+    Retries once on transient failure before giving up."""
     url = (
         f"https://api.apify.com/v2/acts/{actor_slug}/run-sync-get-dataset-items"
         f"?token={APIFY_TOKEN}"
     )
     data = json.dumps(run_input).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
-    )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            req = urllib.request.Request(
+                url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError) as e:
+            last_err = e
+            log(f"Apify call attempt {attempt}/{retries} failed for {actor_slug}: {e}")
+    raise last_err
 
 
 def fetch_tiktok():
@@ -210,6 +219,39 @@ def fmt(n):
     return f"{round(n or 0):,}".replace(",", ".")
 
 
+def merge_with_last_known(fresh, last_known):
+    """Fills in any missing/None field from the last known good value, so a
+    single flaky Apify response never makes a stat look like it dropped to 0.
+    Only overwrites last_known for fields that actually came back this run."""
+    last_known = dict(last_known or {})
+    merged = dict(last_known)
+    for k, v in (fresh or {}).items():
+        if v is not None:
+            merged[k] = v
+    return merged
+
+
+def write_stats_file(tt_stats, yt_stats):
+    """Writes a small, plain JSON file with the current best-known stats.
+    This is what the dashboard HTML reads (via GitHub Pages) so its numbers
+    stay in sync with what the emails report — same source of truth."""
+    payload = {
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+        "tiktok": {
+            "followers": tt_stats.get("followers"),
+            "hearts": tt_stats.get("hearts"),
+            "videos": tt_stats.get("videos"),
+        },
+        "youtube": {
+            "subscribers": yt_stats.get("subscribers"),
+            "totalViews": yt_stats.get("totalViews"),
+            "videos": yt_stats.get("videos"),
+        },
+    }
+    with open(STATS_FILE, "w") as f:
+        json.dump(payload, f, indent=2)
+
+
 def maybe_send_post_reminders(state):
     """Sends up to 7 post reminders/day at fixed local times, each with
     fresh content ideas + estimated reach. Safe to call every run — it only
@@ -254,16 +296,24 @@ def main():
     today = datetime.now(timezone.utc).date().isoformat()
 
     try:
-        tt_videos, tt_stats = fetch_tiktok()
+        tt_videos, tt_stats_fresh = fetch_tiktok()
     except urllib.error.URLError as e:
         log(f"TikTok fetch failed: {e}")
-        tt_videos, tt_stats = [], {}
+        tt_videos, tt_stats_fresh = [], {}
 
     try:
-        yt_videos, yt_stats = fetch_youtube()
+        yt_videos, yt_stats_fresh = fetch_youtube()
     except urllib.error.URLError as e:
         log(f"YouTube fetch failed: {e}")
-        yt_videos, yt_stats = [], {}
+        yt_videos, yt_stats_fresh = [], {}
+
+    # Never let a flaky/partial Apify response make a stat look like it
+    # dropped to 0 — fill any missing field from the last known good value.
+    last_known = state.get("last_known_stats", {})
+    tt_stats = merge_with_last_known(tt_stats_fresh, last_known.get("tiktok"))
+    yt_stats = merge_with_last_known(yt_stats_fresh, last_known.get("youtube"))
+    state["last_known_stats"] = {"tiktok": tt_stats, "youtube": yt_stats}
+    write_stats_file(tt_stats, yt_stats)
 
     all_videos = tt_videos + yt_videos
 
