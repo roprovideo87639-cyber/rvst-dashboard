@@ -26,7 +26,7 @@
   "last_known_stats": {
     "tiktok": {
       "followers": 681,
-      "hearts": 8639,
+      "hearts": 8640,
       "videos": 123
     },
     "youtube": {
@@ -34,5 +34,8 @@
       "totalViews": 131080,
       "videos": 55
     }
-  }
+  },
+  "sent_reminder_slots": [
+    "2026-09-05_18"
+  ]
 }
