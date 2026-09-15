@@ -1,42 +1,43 @@
 {
   "known_urls": [
     "https://www.tiktok.com/@rvst_officieel/video/7680183763476811010",
-    "https://www.tiktok.com/@rvst_officieel/video/7682769837378112790",
-    "https://www.tiktok.com/@rvst_officieel/video/7685423032197713185",
-    "https://www.tiktok.com/@rvst_officieel/video/7538047322324880673",
-    "https://www.tiktok.com/@rvst_officieel/video/7531814137337351457",
-    "https://www.tiktok.com/@rvst_officieel/video/7682389822115220758",
-    "https://www.tiktok.com/@rvst_officieel/video/7681629018919079190",
-    "https://www.youtube.com/watch?v=pIOV6g8bRFo",
-    "https://www.tiktok.com/@rvst_officieel/video/7677605956536110358",
     "https://www.tiktok.com/@rvst_officieel/video/7677615322903498006",
+    "https://www.tiktok.com/@rvst_officieel/video/7682003917726649622",
+    "https://www.tiktok.com/@rvst_officieel/video/7538047322324880673",
+    "https://www.tiktok.com/@rvst_officieel/video/7685423032197713185",
+    "https://www.tiktok.com/@rvst_officieel/video/7677909676960320790",
+    "https://www.tiktok.com/@rvst_officieel/video/7684613917183675680",
+    "https://www.tiktok.com/@rvst_officieel/video/7559264418995932449",
     "https://www.tiktok.com/@rvst_officieel/video/7679851497244462358",
     "https://www.tiktok.com/@rvst_officieel/video/7680545462260141334",
-    "https://www.tiktok.com/@rvst_officieel/video/7684613917183675680",
-    "https://www.tiktok.com/@rvst_officieel/video/7682003917726649622",
-    "https://www.youtube.com/watch?v=ccym_SgD0lc",
-    "https://www.tiktok.com/@rvst_officieel/video/7677909676960320790",
-    "https://www.youtube.com/watch?v=pMh6wIfKkxE",
-    "https://www.youtube.com/watch?v=mpcY3t2bRiA",
     "https://www.youtube.com/watch?v=tsb7SqMbu1k",
+    "https://www.tiktok.com/@rvst_officieel/video/7677605956536110358",
+    "https://www.tiktok.com/@rvst_officieel/video/7685707684166815009",
     "https://www.youtube.com/watch?v=0mWlPe3Uu7U",
-    "https://www.tiktok.com/@rvst_officieel/video/7559264418995932449",
+    "https://www.tiktok.com/@rvst_officieel/video/7682769837378112790",
+    "https://www.tiktok.com/@rvst_officieel/video/7531814137337351457",
+    "https://www.tiktok.com/@rvst_officieel/video/7678296314878102806",
     "https://www.tiktok.com/@rvst_officieel/video/7681247340342332694",
-    "https://www.tiktok.com/@rvst_officieel/video/7678296314878102806"
+    "https://www.youtube.com/watch?v=ccym_SgD0lc",
+    "https://www.youtube.com/watch?v=mpcY3t2bRiA",
+    "https://www.tiktok.com/@rvst_officieel/video/7681629018919079190",
+    "https://www.tiktok.com/@rvst_officieel/video/7682389822115220758",
+    "https://www.youtube.com/watch?v=pMh6wIfKkxE",
+    "https://www.youtube.com/watch?v=pIOV6g8bRFo"
   ],
-  "last_post_date": "2026-09-14",
+  "last_post_date": "2026-09-15",
   "last_digest_date": "2026-09-15",
   "last_inactivity_alert_date": "2026-09-15",
   "seeded": true,
   "last_known_stats": {
     "tiktok": {
       "followers": 702,
-      "hearts": 8912,
-      "videos": 127
+      "hearts": 8920,
+      "videos": 128
     },
     "youtube": {
       "subscribers": 248,
-      "totalViews": 135356,
+      "totalViews": 135406,
       "videos": 56
     }
   },
@@ -52,6 +53,7 @@
     "2026-09-13_14",
     "2026-09-13_18",
     "2026-09-13_20",
-    "2026-09-14_20"
+    "2026-09-14_20",
+    "2026-09-15_12"
   ]
 }
